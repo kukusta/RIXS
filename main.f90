@@ -1,20 +1,22 @@
 PROGRAM RIXS
 
-call prolog
+use m_functions, only: deallocate_global_arrays
+
 call readinput
 call readbnd
 call readsdt
-call read_RIXS_data
+call readrixsdata
 call geometry
 call kpmesh
-call set_aux_arrays
+call setaux
 call printdata
-call read_RIXS_mme
+call readrixsmme
 call rixsloss
 call absorption
 call readrix
-call write_results
+call writerix
 call print_time_statistics
-call epilog
+call deallocate_global_arrays( success = .true. )
 
 END PROGRAM RIXS
+

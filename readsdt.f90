@@ -1,6 +1,6 @@
 SUBROUTINE READSDT
 use m_bnd, only: nopused,iopnum
-use m_files, only: sdt, sdtfile
+use m_files, only: sdt,sdtfile
 use m_params
 use m_sdt
 implicit none
@@ -9,8 +9,8 @@ integer iok, it(64), inver, iaddparam, icub, iop, j, ngsdt, ngsdt2
 logical exist
 real(REAL64) rbassdt( 3, 3 ), vg48( 3, 48 )
 
-if (read_rixfile) return
-if (check_kstar) return
+if ( read_rixfile ) return
+if ( check_kstar .and. debug_mode ) return
 
 inquire(file=sdtfile,exist=exist)
 if(.not. exist)then

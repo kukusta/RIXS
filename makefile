@@ -3,7 +3,7 @@ MYNAME=RIXS
 RIXS_DUM:
 	(cd ../.. ; $(MAKE) $(MYNAME))
 
-F90OBJ=createinput.o main.o readrixsdata.o prolog.o epilog.o \
+F90OBJ=createinput.o main.o readrixsdata.o \
 readbnd.o readinput.o readsdt.o writerix.o set_nbi_nbf.o set_ncf_ncl.o bz.o \
 memory_usage.o geometry.o printdata.o files.o librixs.o time.o readrix.o
 
@@ -14,12 +14,13 @@ OMPOBJ=tetdoss.o
 F90OMPOBJ=rixsloss.o set_a.o readrixsmme.o absorption.o set_absorp_rbz.o \
 set_absorp_ibz.o kpmesh.o dealloc.o
 
+INCLUDES=PREC.FI
+
 COMMONMODULES=m_rixs.mod
 
 # COBJ= kmesh_wrap.o
 
-programs: m_files.mod $(SYSBIN)/rixs$(VERSION)
-# $(SYSBIN)/jbns$(VERSION)
+programs: m_files.mod $(SYSBIN)/rixs$(VERSION) $(SYSBIN)/jbns$(VERSION)
 
 # $(OMPFLAGS)
 m_files.mod:
@@ -60,7 +61,7 @@ objf:
 	@echo F90RIXSOMP_FILES=\"$(F90OMPOBJ)\" >> $(FILEOBJ)
 	@echo NOPT_FILES=\"$(NOPTOBJ)\" >> $(FILEOBJ)
 	@echo C_FILES=\"$(COBJ)\" >> $(FILEOBJ)
-#	@echo INCLUDE_FILES=\"$(INCLUDES)\" >> $(FILEOBJ)
+	@echo INCLUDE_FILES=\"$(INCLUDES)\" >> $(FILEOBJ)
 	@echo MODULE_FILES=\"$(MODULES)\" >> $(FILEOBJ)
 	@echo COMMON_MODULES=\"$(COMMONMODULES)\" >> $(FILEOBJ)
 

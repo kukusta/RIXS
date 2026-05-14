@@ -3,19 +3,14 @@ use m_bnd
 use m_bz
 use m_bzmesh
 use m_functions
-use m_params ! , only: BUFFER_SIZE, iprint, nbi, nbf, check_kstar, debug_mode
+use m_params, only: BUFFER_SIZE, iprint, nbi, nbf
 use m_rixs, only: nrixs, rixs
-use omp_lib
 implicit none
 character(10), parameter :: srcname=' in KPMESH'
 integer ib, iop, is_g4q, ng, k1, k2, k3, iprint_local, isp, kbz, krbz
 real(REAL64), parameter :: eps=1.e-5_REAL64
 real(REAL64), allocatable :: g_temp( : , : , : )
-real(REAL64) op( 3, 3 ), dpi, q2(3), x, norm2, start_ref, finish_ref, &
-    time_prev, time_next
-
-if ( check_kstar .and. debug_mode ) return
-if ( read_rixfile ) return
+real(REAL64) op( 3, 3 ), dpi, q2(3), x, norm2, start_ref, finish_ref
 
 if ( iprint > 0 ) then
   write( unit = output_unit , fmt = "( 4x , a )" ) 'Symmetry for RIXS.'
@@ -127,15 +122,12 @@ if ( iprint > 0 ) &
        'Start referencing arrays for all RIXS spectra.'
 
 !$$$ if ( ng > 1 )
+call allocate( g_temp, 'g_temp' // srcname, udim1 = 3, udim2 = 3, udim3 = nopused )
 
 ! allocate(g_temp(3,3,nopused),stat=iok,errmsg=msg)
 ! if(iok /= 0) &
 !   call print_allocation_error('g_temp',iok,msg)
 
-! $omp parallel default(shared) private( g_temp, iop, norm2, op, q2, x, &
-! $omp& is_g4q, nkibz, ntibz, itetr, idold, ipq, ig4q, kbz, k3, k2, k1, &
-! $omp& krbz, isp, time_prev, time_next )
-! $omp do schedule( dynamic, 1 )
 do isp = 1, nrixs
   !$$$if ( ng == 1 )then
 !$$$    rixs(isp)%ng = 1
@@ -153,11 +145,7 @@ do isp = 1, nrixs
 !$$$    rixs(isp)%itetr( : , : ) = itetr( : , : )
 !$$$    rixs(isp)%idold( : , : ) = idold( : , : )
 !$$$  else
-    time_prev = omp_get_wtime()
     rixs( isp )%iopnum(:) = 0
-    call allocate( g_temp, 'g_temp' // srcname, udim1 = 3, udim2 = 3, &
-         udim3 = nopused )
-
   ! allocate(rixs(isp)%ipq(ndxyz(1),ndxyz(2),ndxyz(3))&
   !         ,stat=iok,errmsg=msg)
   ! if(iok /= 0) &
@@ -179,8 +167,7 @@ do isp = 1, nrixs
         q2(:) = matmul( op, rixs(isp)%q )
         x = dot_product( rixs(isp)%q, q2 )
         if ( norm2 - abs(x) < eps ) then
-          if ( norm2 - x > eps .and. &
-               rixs( isp )%use_symmetry( 1:1 ) == 'p' ) cycle
+          if ( norm2 - x > eps .and. rixs( isp )%use_symmetry( 1:1 ) == 'p' ) cycle
           rixs( isp )%ng = rixs( isp )%ng + 1
           g_temp( : , : , rixs( isp )%ng ) = op( : , : )
           rixs( isp )%iopnum( rixs( isp )%ng ) = iopnum( iop )
@@ -264,9 +251,8 @@ do isp = 1, nrixs
         call exit_on_error( srcname )
       endif
 
-      call allocate( rixs( isp )%ikbz2rbz, 'rixs(' // &
-           trim( int2string(isp) ) // ')%ikbz2rbz' // srcname, &
-           udim1 = rixs( isp )%nkrbz, nullify = .true. )
+      call allocate( rixs( isp )%ikbz2rbz, 'rixs(' // trim( int2string(isp) ) &
+           // ')%ikbz2rbz' // srcname, udim1 = rixs( isp )%nkrbz, nullify = .true. )
 
   ! allocate( rixs(isp)%ikbz2rbz( rixs(isp)%nkrbz ), stat = iok, errmsg = msg )
   ! if(iok /= 0) &
@@ -303,16 +289,9 @@ do isp = 1, nrixs
   ! if(iok /= 0) &
   !   call print_allocation_error(&
   !        'rixs('//trim(int2string(isp))//')%ik2kq',iok,msg)
-  call deallocate( g_temp, 'g_temp' // srcname )
-  time_next = omp_get_wtime()
-!$omp critical
-!$$$  write(*,*) 'time for isp=', isp, ' is ', time_next - time_prev, ' ss.'
-!$omp end critical
 enddo     ! isp
-! $omp end do
-! $omp end parallel
 
-! if ( ng > 1 ) 
+if ( ng > 1 ) call deallocate( g_temp, 'g_temp' // srcname )
 ! deallocate(g_temp,stat=iok)
 
 call cpu_time( finish_ref )

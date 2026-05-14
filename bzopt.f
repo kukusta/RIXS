@@ -266,6 +266,7 @@ c ordering  del(i) coupled with a(i)
           endif
         enddo
       enddo
+c
       if(del(4).le.0.d0)return
       nmin=(del(1)-emin)/de+2.000001d0
       if(nmin.gt.npe)return

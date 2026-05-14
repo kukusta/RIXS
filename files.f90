@@ -1,8 +1,7 @@
   SUBROUTINE ADD_FILE(fname,unit,alias)
     use m_files
-    use m_constants, only: BUFFER_SIZE
     implicit none
-    character(BUFFER_SIZE) :: fname
+    character(filename_length) :: fname
     character(aliasname_length), optional :: alias
     integer unit
 ! local vars

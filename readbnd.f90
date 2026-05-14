@@ -3,7 +3,7 @@ use m_files, only: bnd,bndfile
 use m_bzmesh, only: nkibz,ndxyz
 use m_functions
 use m_bnd
-use m_params, only: check_kstar, read_rixfile
+use m_params, only: check_kstar, debug_mode, read_rixfile
 implicit none
 ! local vars
 character(11), parameter :: srcname=' in READBND'
@@ -14,8 +14,8 @@ logical exist
 real, allocatable :: e4(:)
 real ef4,rbas4(3,3),qbas4(3,3)    
 
-if (read_rixfile) return
-if (check_kstar) return
+if ( read_rixfile ) return
+if ( check_kstar .and. debug_mode ) return
 
 inquire(file=bndfile,exist=exist)
 if(.not. exist)then
@@ -60,18 +60,5 @@ enddo
 if(ndiv < 10000) stop '    RIXS works with Bloechl BZ division only.'
 call ndiv2nnn(ndiv,ndxyz(1),ndxyz(2),ndxyz(3))
 
-! call check_RISX_input_energies
-
 END SUBROUTINE READBND
 
-! SUBROUTINE check_RISX_input_energies
-! use m_bnd, only: ef
-! use m_rixs, only: rixs, nrixs
-! implicit none
-! integer isp
-
-! do isp = 1, nrixs
-!   if (rixs(isp)%en < 0.) rixs(isp)%en = ef + abs(rixs(isp)%en)
-! enddo
-
-! END SUBROUTINE check_RISX_input_energies

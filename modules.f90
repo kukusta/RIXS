@@ -1,49 +1,69 @@
-MODULE M_CONSTANTS
-use, intrinsic :: iso_fortran_env
-implicit none
-complex(REAL64), parameter :: z0 = (0._REAL64, 0._REAL64)
-complex(REAL64), parameter :: zi = (0._REAL64, 1._REAL64)
-integer, parameter :: MAX_NRIXS = 99
-integer, parameter :: BUFFER_SIZE = 256
-integer, parameter :: FILENAME_SIZE = 80
-real(REAL64), parameter :: eps1  = 0.1_REAL64
-real(REAL64), parameter :: eps2  = 0.01_REAL64
-real(REAL64), parameter :: eps3  = 0.001_REAL64
-real(REAL64), parameter :: eps4  = 0.0001_REAL64
-real(REAL64), parameter :: eps5  = 0.00001_REAL64
-real(REAL64), parameter :: eps6  = 0.000001_REAL64
-real(REAL64), parameter :: eps12 = 1.e-12_REAL64
-real(REAL64), parameter :: r2d = 45._REAL64/atan(1._REAL64)
-END MODULE M_CONSTANTS
+! MODULE M_RIXS2
+!   use, intrinsic :: iso_fortran_env
+!   implicit none
 
-MODULE M_PARAMS
-use, intrinsic :: iso_fortran_env
-implicit none
-character(4) Reg_BZ_global
-character(6) Reg_BZ_states_global
-integer iprint, iabsorp, irixs, nbi_global(2), nbf_global(2), nw
-integer ntr_step, Reg_BZ_size_global(3)
-logical new_inr, absorption_only, write_hsym_points
-logical check_kstar, read_rixfile, negative_energy_loss
-logical map2d_ein_global, map2d_q_global, save2dat_global
-logical allow_negative_RIXS_values, switch_ini_final
-real(REAL64) Reg_BZ_center_global(3)
-real(REAL64) wmin, wmax, dw
-real(REAL64) volomg, k_in(3), q_axis(3) ! , A_bas(3, 3)
-common /cor/ wmin, wmax, dw, nw
-END MODULE M_PARAMS
+!   type, public :: lmto_spectrum
+!     character(4) sname
+!     character(6) txtel
+!     integer nn,nk,iwritemme
+!     integer isort
+!     integer ia1,ian
+!     integer iat1,iatn
+!     integer label
+!     real(REAL64) ec,enlmin,enlmax,dnhsort
+!     complex(REAL64), allocatable :: mme(:,:,:,:,:) !3,iat1:iatn,ia1:ian,nb,npnt
+!     ! mmebz(1:3,iat1:iatn,ia1:ian,nb,1:nkbz)
+!     complex(REAL64), allocatable :: mmebz(:,:,:,:,:)
+!     real(REAL64), allocatable :: esp(:)
+!     real(REAL64), allocatable :: rat(:,:)
+!   end type lmto_spectrum
+
+!   type, public :: rixs_spectrum
+!     complex(REAL64) e_in(3),e_out(3)
+!     character(4) sname,channel,use_symmetry
+!     character(6) txtel
+!     integer isort,nn,nk,iwritemme,label
+!     integer nbi(2),nbf(2),ntr
+!     integer ng,ntrbz,nkrbz,iopnum(64)
+!     logical save2dat,map2d_ein,map2d_q
+!     real(REAL64) ec,enlmin,enlmax,dnhsort,Gamma,q(3)
+!     real(REAL64) en,fnorm,k_in(3),k_out(3)
+! ! symmetry operations for this spectrum
+!     real(REAL64), allocatable :: g(:,:,:)  ! (1:3,1:3,nopused)
+! ! list of original k-points forming tetrahedra. For integration in optics.
+!     integer, allocatable :: idold(:,:)     ! (4,rixs(isp)%ntrbz)
+! ! ipq for rixs(isp)%ng
+!     integer, allocatable :: ipq(:,:,:)     ! (ndxyz(1),ndxyz(2),ndxyz(3))
+! ! list of irreducible k-points forming tetrahedra
+!     integer, allocatable :: itetr(:,:)     ! (0:4,rixs(isp)%ntrbz)
+! ! these arrays allow to use symmetry in bzopt
+!     integer, allocatable :: ik2rbz(:)      ! 1:nkbz
+!     integer, allocatable :: ik2kq(:)       ! 1:nkbz
+!     integer, allocatable :: ikbz2rbz(:)    ! 1:rixs(isp)%nkrbz
+!     integer, allocatable :: ig4q(:,:,:)    ! 1:nkbz,1:nkbz,1:nkbz
+! ! auxiliary statistics
+!     real(REAL64) max_mme , min_mme , av_mme
+!   end type rixs_spectrum
+
+!   integer nrixs,nrixslmt,ispc,nlabel,ne,n_mme,nfu,nlmtdata,max_nhsort
+!   real(REAL64) de,emin,emax,k_in(3),Qaxis(3),Abas(3,3)
+!   type(rixs_spectrum), allocatable :: rixs(:)    ! 1:nrixs
+!   type(lmto_spectrum), allocatable :: lmttemp(:) ! 1:nrixslmt
+!   type(lmto_spectrum), allocatable :: lmtdata(:) ! 1:nlmtdata
+! END MODULE M_RIXS2
 
 MODULE M_FILES
   use, intrinsic :: iso_fortran_env
-  use m_constants
   implicit none
 
-  integer, parameter :: aliasname_length = 16
+  integer, parameter :: filename_length=256
+  integer, parameter :: aliasname_length=16
 
-  TYPE FILE  ! bidirectional list
-    character(BUFFER_SIZE) fname
-    character(aliasname_length) alias
+  TYPE FILE
+    character( filename_length ) fname
+    character( aliasname_length ) alias
     integer unit
+! pointers for bidirectional list
     type(file), pointer :: prev => null()
     type(file), pointer :: next => null()
   END TYPE FILE
@@ -51,11 +71,13 @@ MODULE M_FILES
   type(file), target, allocatable :: headfile
   type(file), pointer :: tail => null()
 
-  character(FILENAME_SIZE) basename
-  character(FILENAME_SIZE) bndfile, bnsfile, inptfile, datafile, sdtfile
-  character(FILENAME_SIZE) rixsfile, map2deinfile, map2dqfile
-  character(BUFFER_SIZE)   mmefile  ! mmefile can be written to scratch
-  integer bnd, bns, inp, rid, sdt, rix, run, m2d_ein, m2d_q, rim
+  character(80)  basename
+  character(80)  bndfile, bnsfile, inptfile, datafile, sdtfile, &
+                 rixsfile, runfile, map2deinfile, map2dqfile
+  integer        bnd, bns, inp, rid, sdt, rix, run, m2d_ein, m2d_q
+! mmefile can be written to scratch
+  character(256) mmefile
+  integer        rim
 
 !   INTERFACE
 !     SUBROUTINE ADD_FILE(fname,unit,alias)
@@ -97,6 +119,18 @@ MODULE M_FILES
 
 END MODULE M_FILES
 
+MODULE M_PARAMS
+use, intrinsic :: iso_fortran_env
+implicit none
+integer, parameter :: MAX_NRIXS = 99
+integer, parameter :: BUFFER_SIZE = 256
+integer iprint, iabsorp, irixs, nbi(2), nbf(2), nw
+logical newini, debug_mode, absorption_only, write_hsym_points, &
+     jointbnd_only, check_kstar, read_rixfile
+real(REAL64) wmin, wmax, dw, volomg
+common /cor/ wmin, wmax, dw, nw
+END MODULE M_PARAMS
+
 MODULE M_SDT
 use, intrinsic :: iso_fortran_env
 implicit none
@@ -110,23 +144,22 @@ use, intrinsic :: iso_fortran_env
 implicit none
 character(4) high_sym_pnt_txt_dir(48)
 integer natom, npnt, nb, nopused, iopnum(64)
-real high_sym_pnt(3, 48)
-real(REAL64) ef, rbas(3, 3), qbas(3, 3)
+real high_sym_pnt( 3, 48 )
+real(REAL64) ef, rbas( 3, 3 ), qbas( 3, 3 )
 real(REAL64), allocatable :: e( : , : )      ! 1:nb,1:nkibz
 real(REAL64), allocatable :: ebz( : , : )    ! 1:nb,1:nkibz
 real(REAL64), allocatable :: g( : , : , : )  ! 1:3,1:3,1:nopused
 END MODULE M_BND
 
 MODULE M_BZ
-use, intrinsic :: iso_fortran_env
 implicit none
-integer, parameter :: ibzext   = 0
+integer, parameter :: ibzext = 0
 integer, parameter :: is_avtet = 0
 integer, parameter :: is_idold = 1
-integer, parameter :: is_wgt   = 0
+integer, parameter :: is_wgt = 0
 ! save data for IBZ
-integer, allocatable :: ipqibz(:,:,:)  ! 1:n1,1:n2,1:n3
-integer, allocatable :: ig4qibz(:,:,:) ! 1:n1,1:n2,1:n3
+integer, allocatable :: ipqibz( : , : , : )  ! 1:n1,1:n2,1:n3
+integer, allocatable :: ig4qibz( : , : , : )  ! 1:n1,1:n2,1:n3
 integer, allocatable :: ik2ibz(:)      ! 1:nkbz
 END MODULE M_BZ
 
@@ -143,36 +176,32 @@ integer, allocatable :: i1(:)       ! 1:nkbz
 integer, allocatable :: i2(:)       ! 1:nkbz
 integer, allocatable :: i3(:)       ! 1:nkbz
 
-integer, allocatable :: lmtindex(:)  ! 1:n_mme
-integer, allocatable :: map(:,:)     ! 1:n_mme, 1:nrixs
+integer, allocatable :: lmtindex(:) ! 1:n_mme
+integer, allocatable :: map( : , : )    ! 1:n_mme,1:nrixs
 END MODULE M_AUX
 
 MODULE M_RESULTS
 use, intrinsic :: iso_fortran_env
 implicit none
-real(REAL64), allocatable :: loss(:,:)       ! 1:nw, 1:nrixs
-real(REAL64), allocatable :: loss_neg_w(:,:) ! 1:nw, 1:nrixs
-real(REAL64), allocatable :: absorp(:,:,:)   ! 1:nw, 1:nrixs, 1:iabsorp
+real(REAL64), allocatable :: loss( : , : )     ! 1:nw,1:nrixs
+real(REAL64), allocatable :: absorp( : , : , : ) ! 1:nw,1:nrixs,1:iabsorp
 END MODULE M_RESULTS
 
 MODULE M_FUNCTIONS
-use, intrinsic :: iso_fortran_env
-use m_constants
-implicit none
+  use m_params, only: BUFFER_SIZE
+  implicit none
 
   INTERFACE ALLOCATE
     module procedure alloc1dint32, alloc1dreal32, alloc1dreal64, &
            alloc2dint32, alloc2dreal32, alloc2dreal64, alloc3dcomplex64, &
-           alloc3dint32, alloc3dreal64, alloc4dcomplex64, alloc5dcomplex64, &
-           alloc1drixs_spectrum, alloc1dlmto_spectrum
+           alloc3dint32, alloc3dreal64, alloc4dcomplex64, alloc5dcomplex64
   END INTERFACE ALLOCATE
 
   INTERFACE DEALLOCATE
-    module procedure dealloc1dint32, dealloc1dreal32, dealloc1dreal64
-    module procedure dealloc1drixs_spectrum
-    module procedure dealloc1dlmto_spectrum, dealloc2dint32
-    module procedure dealloc2dreal32, dealloc2dreal64, dealloc3dint32
-    module procedure dealloc3dreal64, dealloc4dcomplex64, dealloc5dcomplex64
+    module procedure dealloc1dint32, dealloc1dreal32, dealloc1dreal64, &
+           dealloc1dlmtspec, dealloc1drixsspec, dealloc2dint32, &
+           dealloc2dreal32, dealloc2dreal64, dealloc3dint32, &
+           dealloc3dreal64, dealloc4dcomplex64, dealloc5dcomplex64
   END INTERFACE DEALLOCATE
 
   INTERFACE INT2STRING
@@ -191,13 +220,13 @@ implicit none
     module procedure mme_trans_inv_real64,mme_trans_inv_cmplx64
   END INTERFACE MME_TRANS_INV
 
-  ! INTERFACE DEALLOCATE_GLOBAL_ARRAYS
-  !   SUBROUTINE DEALLOCATE_GLOBAL_ARRAYS
-  !     logical , optional :: success
-  !     character(28) , parameter :: srcname = " in DEALLOCATE_GLOBAL_ARRAYS"
-  !     integer isp
-  !   END SUBROUTINE DEALLOCATE_GLOBAL_ARRAYS
-  ! END INTERFACE DEALLOCATE_GLOBAL_ARRAYS
+  INTERFACE DEALLOCATE_GLOBAL_ARRAYS
+    SUBROUTINE DEALLOCATE_GLOBAL_ARRAYS( success )
+      logical , optional :: success
+      character(28) , parameter :: srcname = " in DEALLOCATE_GLOBAL_ARRAYS"
+      integer isp
+    END SUBROUTINE DEALLOCATE_GLOBAL_ARRAYS
+  END INTERFACE DEALLOCATE_GLOBAL_ARRAYS
 
   ! INTERFACE
   !   subroutine close(unit,status)
@@ -211,8 +240,9 @@ implicit none
   ! END INTERFACE
 
   INTERFACE EXIT_ON_ERROR
-    subroutine exit_on_error(from)
+    subroutine exit_on_error( from , stop )
       character(*), optional :: from
+      logical, optional :: stop
     end subroutine exit_on_error
   END INTERFACE EXIT_ON_ERROR
 
@@ -220,7 +250,7 @@ CONTAINS
 
   CHARACTER(BUFFER_SIZE) FUNCTION INT32_2STRING(int,separator)
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character, optional :: separator
     integer(INT32) int
@@ -231,8 +261,6 @@ CONTAINS
     int32_2string=adjustl(int32_2string)
     if(int >= 0 .and. int < 10) &
       int32_2string(:)='0'//int32_2string(:len(int32_2string)-1)
-!    if(int >= 0 .and. int < 10) &
-!      int32_2string(:) = int32_2string( : len(int32_2string)-1 )
 
     if(present(separator))then
       do i=len(trim(int32_2string))-2,2,-3
@@ -244,29 +272,29 @@ CONTAINS
 
   CHARACTER(BUFFER_SIZE) FUNCTION INT64_2STRING(int,separator)
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character, optional :: separator
     integer(INT64) int
 ! local vars
     integer i
 
-    write(int64_2string, *) int
-    int64_2string = adjustl(int64_2string)
-    if (int >= 0 .and. int < 10) then
-      int64_2string(:) = '0' // int64_2string(:len(int64_2string) - 1)
-    endif
-    if (present(separator)) then
-      do i = len(trim(int64_2string)) - 2, 2, -3
-        int64_2string(:) = int64_2string(:i - 1) // separator // &
-                           int64_2string(i:len(int64_2string) - 1)
+    write(int64_2string,*)int
+    int64_2string=adjustl(int64_2string)
+    if(int >= 0 .and. int < 10) &
+      int64_2string(:)='0'//int64_2string(:len(int64_2string)-1)
+
+    if(present(separator))then
+      do i=len(trim(int64_2string))-2,2,-3
+        int64_2string(:)=int64_2string(:i-1)//separator//&
+                      int64_2string(i:len(int64_2string)-1)
       enddo
     endif
   END FUNCTION INT64_2STRING
 
-  SUBROUTINE ALLOC1DINT32(array, alias, ldim1, udim1, nullify)
+  SUBROUTINE ALLOC1DINT32( array , alias , ldim1 , udim1 , nullify )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     integer(INT32), optional :: ldim1, udim1
@@ -300,7 +328,7 @@ CONTAINS
 
   SUBROUTINE ALLOC1DREAL32( array, alias, ldim1, udim1, nullify )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     integer(INT32), optional :: ldim1, udim1
@@ -334,7 +362,7 @@ CONTAINS
 
   SUBROUTINE ALLOC1DREAL64( array , alias , ldim1 , udim1 , nullify )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     integer(INT32), optional :: ldim1, udim1
@@ -369,7 +397,7 @@ CONTAINS
   SUBROUTINE ALLOC2DINT32( array , alias , ldim1 , udim1 &
              , ldim2 , udim2 , nullify )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     integer(INT32), optional :: ldim1, udim1, ldim2, udim2
@@ -410,7 +438,7 @@ CONTAINS
 
   SUBROUTINE ALLOC2DREAL32( array, alias, ldim1, udim1, ldim2, udim2, nullify )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     integer(INT32), optional :: ldim1, udim1, ldim2, udim2
@@ -452,7 +480,7 @@ CONTAINS
   SUBROUTINE ALLOC2DREAL64( array , alias , ldim1 , udim1 &
              , ldim2 , udim2 , nullify )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     integer(INT32), optional :: ldim1, udim1, ldim2, udim2
@@ -494,11 +522,12 @@ CONTAINS
   SUBROUTINE ALLOC3DCOMPLEX64( array , alias , ldim1 , udim1 &
              , ldim2 , udim2 , ldim3 , udim3 , nullify )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(24) , parameter :: srcname="ALLOCATE_ALLOC3DCOMPLEX64"
     character(*) , optional :: alias
     complex(REAL64) , allocatable :: array(:,:,:)
+    complex(REAL64) , parameter :: z0 = ( 0._REAL64 , 0._REAL64 )
     integer(INT32) , optional :: ldim1, udim1, ldim2, udim2, ldim3, udim3
     logical , optional :: nullify
 ! local vars
@@ -537,7 +566,7 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim1 < ldim1: ldim1=' &
         ,ldim1_local,' udim1=',udim1
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     if ( udim2 < ldim2_local ) then
@@ -545,7 +574,7 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim2 < ldim2: ldim2=' &
         ,ldim2_local,' udim2=',udim2
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     if ( udim3 < ldim3_local ) then
@@ -553,7 +582,7 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim3 < ldim3: ldim3=' &
         ,ldim3_local,' udim1=',udim3
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     allocate( array( ldim1_local : udim1 , ldim2_local : udim2 &
@@ -563,10 +592,10 @@ CONTAINS
     if( present(nullify) .and. nullify ) array(:,:,:) = z0
   END SUBROUTINE ALLOC3DCOMPLEX64
 
-  SUBROUTINE ALLOC3DINT32(array , alias , ldim1 , udim1 &
-             , ldim2 , udim2 , ldim3 , udim3 , nullify)
+  SUBROUTINE ALLOC3DINT32( array , alias , ldim1 , udim1 &
+             , ldim2 , udim2 , ldim3 , udim3 , nullify )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     integer(INT32), optional :: ldim1, udim1, ldim2, udim2, ldim3, udim3
@@ -613,9 +642,9 @@ CONTAINS
   SUBROUTINE ALLOC3DREAL64( array , alias , ldim1 , udim1 &
              , ldim2 , udim2 , ldim3 , udim3 , nullify )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
-    character(*), parameter :: srcname=" in ALLOCATE_ALLOC3DREAL64"
+    character(22), parameter :: srcname="ALLOCATE_ALLOC3DREAL64"
     character(*), optional :: alias
     integer(INT32), optional :: ldim1, udim1, ldim2, udim2, ldim3, udim3
     logical, optional :: nullify
@@ -656,7 +685,7 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim1 < ldim1: ldim1=' &
         ,ldim1_local,' udim1=',udim1
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     if ( udim2 < ldim2_local ) then
@@ -664,7 +693,7 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim2 < ldim2: ldim2=' &
         ,ldim2_local,' udim2=',udim2
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     if ( udim3 < ldim3_local ) then
@@ -672,22 +701,24 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim3 < ldim3: ldim3=' &
         ,ldim3_local,' udim1=',udim3
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     allocate( array( ldim1_local : udim1 , ldim2_local : udim2 &
             , ldim3_local : udim3 ) , stat = iok , errmsg = msg )
-    if (iok /= 0) call print_allocation_error(alias, iok, msg)
+    if( iok /= 0 ) &
+      call print_allocation_error( alias , iok , msg )
     if( present(nullify) .and. nullify ) array(:,:,:) = 0._REAL64
   END SUBROUTINE ALLOC3DREAL64
 
   SUBROUTINE ALLOC4DCOMPLEX64( array , alias , ldim1 , udim1 , ldim2 , &
              udim2 , ldim3 , udim3 , ldim4 , udim4 , nullify )
     use , intrinsic :: ISO_FORTRAN_ENV
-    use m_constants
+    use m_params , only : BUFFER_SIZE
     implicit none
     character(22) , parameter :: srcname = "ALLOCATE_ALLOC4DREAL64"
     character(*) , optional :: alias
+    complex(REAL64) , parameter :: z0 = ( 0._REAL64 , 0._REAL64)
     integer(INT32) , optional :: ldim1 , udim1 , ldim2 , udim2 , ldim3 , &
         udim3 , ldim4 , udim4
     logical, optional :: nullify
@@ -733,7 +764,7 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim1 < ldim1: ldim1=' &
         ,ldim1_local,' udim1=',udim1
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     if ( udim2 < ldim2_local ) then
@@ -741,7 +772,7 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim2 < ldim2: ldim2=' &
         ,ldim2_local,' udim2=',udim2
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     if ( udim3 < ldim3_local ) then
@@ -749,7 +780,7 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim3 < ldim3: ldim3=' &
         ,ldim3_local,' udim3=',udim3
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     if ( udim4 < ldim4_local ) then
@@ -757,7 +788,7 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim4 < ldim4: ldim4=' &
         ,ldim4_local,' udim4=',udim4
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     allocate( array( ldim1_local : udim1 , ldim2_local : udim2, &
@@ -771,10 +802,11 @@ CONTAINS
   SUBROUTINE ALLOC5DCOMPLEX64( array , alias , ldim1 , udim1 , ldim2 , udim2 , &
              ldim3 , udim3 , ldim4 , udim4 , ldim5 , udim5 , nullify )
     use , intrinsic :: ISO_FORTRAN_ENV
-    use m_constants
+    use m_params , only : BUFFER_SIZE
     implicit none
-    character(*) , parameter :: srcname = " in ALLOCATE_ALLOC5DREAL64"
+    character(22) , parameter :: srcname = "ALLOCATE_ALLOC5DREAL64"
     character(*) , optional :: alias
+    complex(REAL64) , parameter :: z0 = ( 0._REAL64 , 0._REAL64)
     integer(INT32) , optional :: ldim1 , udim1 , ldim2 , udim2 , ldim3 , &
         udim3 , ldim4 , udim4 , ldim5 , udim5
     logical, optional :: nullify
@@ -827,7 +859,7 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim1 < ldim1: ldim1=' &
         ,ldim1_local,' udim1=',udim1
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     if ( udim2 < ldim2_local ) then
@@ -835,7 +867,7 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim2 < ldim2: ldim2=' &
         ,ldim2_local,' udim2=',udim2
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     if ( udim3 < ldim3_local ) then
@@ -843,7 +875,7 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim3 < ldim3: ldim3=' &
         ,ldim3_local,' udim3=',udim3
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     if ( udim4 < ldim4_local ) then
@@ -851,7 +883,7 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim4 < ldim4: ldim4=' &
         ,ldim4_local,' udim4=',udim4
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     if ( udim5 < ldim5_local ) then
@@ -859,7 +891,7 @@ CONTAINS
       write( unit = output_unit , fmt = "(4x,2(a,i0))" ) &
         'Cannot allocate '//trim(alias)//': udim5 < ldim5: ldim5=' &
         ,ldim5_local,' udim5=',udim5
-      call exit_on_error(srcname)
+      call exit_on_error( srcname , .true. )
 !$omp end critical
     endif
     allocate( array( ldim1_local : udim1 , ldim2_local : udim2 &
@@ -870,65 +902,9 @@ CONTAINS
     if( present(nullify) .and. nullify ) array(:,:,:,:,:) = z0
   END SUBROUTINE ALLOC5DCOMPLEX64
 
-  SUBROUTINE alloc1dlmto_spectrum(array, alias, ldim1, udim1)
-    use, intrinsic :: iso_fortran_env
-    use m_constants, only: BUFFER_SIZE
-    use m_rixs, only: lmto_spectrum
-    implicit none
-    character(*), optional :: alias
-    integer(INT32), optional :: ldim1
-    integer(INT32) udim1
-    type(lmto_spectrum), allocatable :: array(:)
-! local vars
-    character(BUFFER_SIZE) msg, alias_local
-    integer iok, ldim1_local
-
-    if (.not. present(alias)) then
-      alias_local(:) = 'unknown array'
-    else
-      alias_local(:) = alias(:)
-    endif
-    if( .not. present(ldim1) ) then
-      ldim1_local=1
-    else
-      ldim1_local=ldim1
-    endif
-    allocate(array(ldim1_local : udim1), stat = iok, errmsg = msg)
-    if (iok /= 0) call print_allocation_error(alias_local, iok, msg)
-    
-  END SUBROUTINE alloc1dlmto_spectrum
-
-  SUBROUTINE alloc1drixs_spectrum(array, alias, ldim1, udim1)
-    use, intrinsic :: iso_fortran_env
-    use m_constants, only: BUFFER_SIZE
-    use m_rixs, only: rixs_spectrum
-    implicit none
-    character(*), optional :: alias
-    integer(INT32), optional :: ldim1
-    integer(INT32) udim1
-    type(rixs_spectrum), allocatable :: array(:)
-! local vars
-    character(BUFFER_SIZE) msg, alias_local
-    integer iok, ldim1_local
-
-    if (.not. present(alias)) then
-      alias_local(:) = 'unknown array'
-    else
-      alias_local(:) = alias(:)
-    endif
-    if( .not. present(ldim1) ) then
-      ldim1_local=1
-    else
-      ldim1_local=ldim1
-    endif
-    allocate(array(ldim1_local : udim1), stat = iok, errmsg = msg)
-    if (iok /= 0) call print_allocation_error(alias_local, iok, msg)
-    
-  END SUBROUTINE alloc1drixs_spectrum
-
   SUBROUTINE DEALLOC1DINT32( array , alias )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     integer, allocatable :: array(:)
@@ -947,7 +923,7 @@ CONTAINS
 
   SUBROUTINE DEALLOC1DREAL32( array, alias )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     real, allocatable :: array(:)
@@ -966,7 +942,7 @@ CONTAINS
 
   SUBROUTINE DEALLOC1DREAL64( array , alias )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     real(REAL64), allocatable :: array(:)
@@ -983,51 +959,49 @@ CONTAINS
       call print_deallocation_error( alias_local , iok , msg )
   END SUBROUTINE DEALLOC1DREAL64
 
-  SUBROUTINE dealloc1dlmto_spectrum(array, alias)
-    use, intrinsic :: iso_fortran_env
-    use m_constants, only: BUFFER_SIZE
+  SUBROUTINE DEALLOC1DLMTSPEC( array , alias )
+    use, intrinsic :: ISO_FORTRAN_ENV
+    use m_params, only: BUFFER_SIZE
     use m_rixs, only: lmto_spectrum
     implicit none
     character(*), optional :: alias
     type(lmto_spectrum), allocatable :: array(:)
 ! local vars
-    character(BUFFER_SIZE) msg, alias_local
+    character(BUFFER_SIZE) msg , alias_local
     integer iok
-
-    if (.not. present(alias)) then
+    if( .not. present(alias) ) then
       alias_local(:) = 'unknown array'
     else
       alias_local(:) = alias(:)
     endif
-    deallocate(array, stat = iok, errmsg = msg)
-    if (iok /= 0) call print_deallocation_error(alias_local, iok, msg)
+    deallocate( array , stat = iok , errmsg = msg)
+    if( iok /= 0 ) &
+      call print_deallocation_error( alias_local , iok , msg )
+  END SUBROUTINE DEALLOC1DLMTSPEC
 
-  END SUBROUTINE dealloc1dlmto_spectrum
-
-  SUBROUTINE dealloc1drixs_spectrum(array, alias)
-    use, intrinsic :: iso_fortran_env
-    use m_constants, only: BUFFER_SIZE
+  SUBROUTINE DEALLOC1DRIXSSPEC( array , alias )
+    use, intrinsic :: ISO_FORTRAN_ENV
+    use m_params, only: BUFFER_SIZE
     use m_rixs, only: rixs_spectrum
     implicit none
     character(*), optional :: alias
     type(rixs_spectrum), allocatable :: array(:)
 ! local vars
-    character(BUFFER_SIZE) msg, alias_local
+    character(BUFFER_SIZE) msg , alias_local
     integer iok
-
-    if (.not. present(alias)) then
+    if( .not. present(alias) ) then
       alias_local(:) = 'unknown array'
     else
       alias_local(:) = alias(:)
     endif
-    deallocate(array, stat = iok, errmsg = msg)
-    if (iok /= 0) call print_deallocation_error(alias_local, iok, msg)
-
-  END SUBROUTINE dealloc1drixs_spectrum
+    deallocate( array , stat = iok , errmsg = msg)
+    if( iok /= 0 ) &
+      call print_deallocation_error( alias_local , iok , msg )
+  END SUBROUTINE DEALLOC1DRIXSSPEC
 
   SUBROUTINE DEALLOC2DINT32( array , alias )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     integer, allocatable :: array(:,:)
@@ -1046,7 +1020,7 @@ CONTAINS
 
   SUBROUTINE DEALLOC2DREAL32( array, alias )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     real, allocatable :: array( : , : )
@@ -1065,7 +1039,7 @@ CONTAINS
 
   SUBROUTINE DEALLOC2DREAL64( array , alias )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     real(REAL64), allocatable :: array(:,:)
@@ -1084,7 +1058,7 @@ CONTAINS
 
   SUBROUTINE DEALLOC3DINT32( array , alias )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     integer, allocatable :: array(:,:,:)
@@ -1103,7 +1077,7 @@ CONTAINS
 
   SUBROUTINE DEALLOC3DREAL64( array , alias )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     real(REAL64), allocatable :: array(:,:,:)
@@ -1122,7 +1096,7 @@ CONTAINS
 
   SUBROUTINE DEALLOC4DCOMPLEX64( array , alias )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     complex(REAL64), allocatable :: array( : , : , : , : )
@@ -1141,7 +1115,7 @@ CONTAINS
 
   SUBROUTINE DEALLOC5DCOMPLEX64( array , alias )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only: BUFFER_SIZE
     implicit none
     character(*), optional :: alias
     complex(REAL64), allocatable :: array(:,:,:,:,:)
@@ -1158,9 +1132,9 @@ CONTAINS
       call print_deallocation_error( alias_local , iok , msg )
   END SUBROUTINE DEALLOC5DCOMPLEX64
 
-  SUBROUTINE CLOSE(unit, status)
+  SUBROUTINE CLOSE( unit , status )
     use, intrinsic :: ISO_FORTRAN_ENV
-    use m_constants, only: BUFFER_SIZE
+    use m_params, only : BUFFER_SIZE
     character(*), optional :: status
     integer unit
 ! local vars
@@ -1168,39 +1142,39 @@ CONTAINS
     integer iok
     logical opened
 
-    if (unit == 0) then
+    if ( unit == 0 ) then
       write( unit = output_unit, fmt = 1)
       return
     endif
 
- 1 format(4x, 'WARNING: you try to close unit=0.' &
-         ,' This is system unit and will not be closed now')
+   1 format(4x,'WARNING: you try to close unit=0.' &
+           ,'This is system unit and will not be closed now')
 
-    inquire(unit = unit, opened = opened)
-    if (.not. opened) then
-      write(unit = output_unit, fmt = 3) unit
+    inquire( unit = unit, opened = opened )
+    if ( .not. opened ) then
+      write( unit = output_unit, fmt = 3 ) unit
       return
     endif
 
- 3 format(4x, 'Unit=', i0, &
-            ' is not connected to any file so it can not be closed')
+   3  format( 4x , 'Unit=' , i0 , &
+            ' is not connected to any file so it can not be closed' )
 
-    if (present(status)) then
-      close(unit = unit, status = status, iomsg = msg, iostat = iok)
+    if ( present( status ) ) then
+      close( unit = unit, status = status, iomsg = msg, iostat = iok )
     else
-      close(unit = unit, iomsg = msg, iostat = iok)
+      close( unit = unit, iomsg = msg, iostat = iok )
     endif
-    if (iok /= 0) then
-      write(unit = output_unit, fmt = 5 )
-      write(unit = output_unit, fmt = 10) unit
-      write(unit = output_unit, fmt = 15) iok
-      write(unit = output_unit, fmt = 20) trim(msg)
+    if ( iok /= 0 ) then
+      write( unit = output_unit, fmt = 5  )
+      write( unit = output_unit, fmt = 10 ) unit
+      write( unit = output_unit, fmt = 15 ) iok
+      write( unit = output_unit, fmt = 20 ) trim(msg)
     endif
 
- 5 format(/, 4x, 'THE ERROR OCCURIED WHILE TRYING TO CLOSE FILE')
-10 format(4x, 'Unit: ', i0)
-15 format(4x, 'Error code: ', i0)
-20 format(4x, 'Error message: ', a)
+   5 format( /, 4x, 'THE ERROR OCCURIED WHILE TRYING TO CLOSE FILE' )
+  10 format( 4x, 'Unit: ', i0 )
+  15 format( 4x, 'Error code: ', i0 )
+  20 format( 4x, 'Error message: ', a )
 
   END SUBROUTINE CLOSE
 
